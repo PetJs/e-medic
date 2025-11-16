@@ -1,73 +1,91 @@
-# React + TypeScript + Vite
+# E-medic
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+E-medic is an online Academy.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
 
-## React Compiler
+- React 
+- TypeScript 
+- Tailwind v4 
+- ESLint (TypeScript/React rules)
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+## Quick Start
 
-## Expanding the ESLint configuration
+Prerequisites: Node.js 18+ (recommend 20 LTS).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# 1) Install dependencies
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# 2) Start the dev server (hot reload)
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# 3) Type-check, build, and preview
+npm run build
+npm run preview
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 4) Lint the project
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+By default, Vite will print the local/dev URL (e.g., http://localhost:5173). Use Ctrl+C to stop the dev server.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- `dev`: Start Vite dev server.
+- `build`: Type-check (`tsc -b`) and build production assets with Vite.
+- `preview`: Preview the production build locally.
+- `lint`: Run ESLint across the project.
+
+## Project Structure
+
 ```
+e-medic/
+├─ index.html
+├─ public/              # Static assets copied as-is
+├─ src/
+│  ├─ main.tsx          # App bootstrap
+│  ├─ App.tsx           # Root component
+│  ├─ index.css         # Global styles
+│  ├─ App.css           # Component styles
+│  └─ assets/           # Local images/fonts, etc.
+├─ eslint.config.js     # ESLint config
+├─ tsconfig*.json       # TypeScript configs
+├─ vite.config.ts       # Vite config (React SWC plugin)
+└─ package.json
+```
+"I'd Update this as we go"
+
+## Environment Variables
+
+Vite exposes only variables prefixed with `VITE_` to your client code.
+
+1. Create an `.env` file at the project root (you can also use `.env.local`, `.env.development`, `.env.production`).
+2. Add variables like:
+
+```
+VITE_API_BASE_URL=https://api.example.com
+VITE_FEATURE_FLAG=true
+```
+
+3. Read them in code via `import.meta.env.VITE_API_BASE_URL`.
+
+Docs: https://vite.dev/guide/env-and-mode.html
+
+## Deployment
+
+1. Build: `npm run build` (outputs to `dist/`).
+2. Host the `dist/` folder on any static host (Netlify, Vercel, GitHub Pages, S3/CloudFront, Nginx, etc.).
+
+Notes:
+
+- Ensure correct base path if hosting under a subpath (configure `base` in `vite.config.ts`).
+- Set any required environment variables in your hosting provider.
+
+## Contributing
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on workflows, coding style, and PR process.
+
+
