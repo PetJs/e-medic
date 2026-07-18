@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { ArrowLeft, CheckCircle2, FileText, Play } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, FileText, Image, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,6 @@ interface ContentURL {
 export default function LessonPlayer() {
   const { id } = useParams<{ id: string }>();
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
-  const [activeContent, setActiveContent] = useState<Content | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"description" | "resources">("description");
@@ -26,14 +25,19 @@ export default function LessonPlayer() {
   const resumePosRef = useRef(0);
   const lastReportRef = useRef(0);
 
+  const video = useMemo(
+    () => lesson?.contents?.find((c) => c.type === "video") ?? null,
+    [lesson]
+  );
+  const resources = useMemo(
+    () => lesson?.contents?.filter((c) => c.type !== "video") ?? [],
+    [lesson]
+  );
+
   useEffect(() => {
     if (!id) return;
     api<LessonDetail>(`/lessons/${id}`)
-      .then((l) => {
-        setLesson(l);
-        const video = l.contents?.find((c) => c.type === "video");
-        setActiveContent(video ?? l.contents?.[0] ?? null);
-      })
+      .then((l) => setLesson(l))
       .catch((err) => {
         if (err instanceof ApiError && err.status === 402) {
           setError("subscription");
@@ -49,13 +53,32 @@ export default function LessonPlayer() {
       .catch(() => {});
   }, [id]);
 
+  // Only videos are streamed in the player; other files open in a new tab.
   useEffect(() => {
-    if (!activeContent) return;
+    if (!video) return;
     setStreamUrl(null);
-    api<ContentURL>(`/content/${activeContent.id}/url`)
+    api<ContentURL>(`/content/${video.id}/url`)
       .then((res) => setStreamUrl(res.url))
       .catch(() => setError("Failed to load content stream."));
-  }, [activeContent]);
+  }, [video]);
+
+  function openResource(content: Content) {
+    // Open the tab synchronously so popup blockers allow it, then point it
+    // at the short-lived signed URL once fetched.
+    const win = window.open("about:blank", "_blank");
+    api<ContentURL>(`/content/${content.id}/url`)
+      .then((res) => {
+        if (win) {
+          win.location.href = res.url;
+        } else {
+          window.open(res.url, "_blank");
+        }
+      })
+      .catch(() => {
+        win?.close();
+        setError("Failed to open resource.");
+      });
+  }
 
   function reportProgress(body: {
     progress_pct?: number;
@@ -72,34 +95,29 @@ export default function LessonPlayer() {
   }
 
   function handleTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
-    const video = e.currentTarget;
-    if (!video.duration) return;
+    const el = e.currentTarget;
+    if (!el.duration) return;
     const now = Date.now();
     // Report at most every 10 seconds to keep chatter down
     if (now - lastReportRef.current < 10_000) return;
     lastReportRef.current = now;
     reportProgress({
-      progress_pct: Math.floor((video.currentTime / video.duration) * 100),
-      last_position: Math.floor(video.currentTime),
+      progress_pct: Math.floor((el.currentTime / el.duration) * 100),
+      last_position: Math.floor(el.currentTime),
     });
   }
 
   function handleLoadedMetadata(e: React.SyntheticEvent<HTMLVideoElement>) {
-    const video = e.currentTarget;
+    const el = e.currentTarget;
     // Resume where the student left off (unless nearly at the end)
-    if (resumePosRef.current > 0 && resumePosRef.current < video.duration - 5) {
-      video.currentTime = resumePosRef.current;
+    if (resumePosRef.current > 0 && resumePosRef.current < el.duration - 5) {
+      el.currentTime = resumePosRef.current;
     }
   }
 
   function handleEnded() {
     reportProgress({ progress_pct: 100, is_completed: true });
   }
-
-  const resources = useMemo(
-    () => lesson?.contents?.filter((c) => c.type !== "video") ?? [],
-    [lesson]
-  );
 
   if (error === "subscription") {
     return (
@@ -132,9 +150,9 @@ export default function LessonPlayer() {
         <ArrowLeft className="size-4" /> Back to module
       </Link>
 
-      {/* Player */}
+      {/* Player — videos only */}
       <div className="relative overflow-hidden rounded-xl bg-black">
-        {activeContent?.type === "video" && streamUrl ? (
+        {video && streamUrl ? (
           <video
             key={streamUrl}
             src={streamUrl}
@@ -147,24 +165,27 @@ export default function LessonPlayer() {
             onEnded={handleEnded}
             className="aspect-video w-full"
           />
-        ) : activeContent?.type === "pdf" && streamUrl ? (
-          <iframe
-            src={`${streamUrl}#toolbar=0`}
-            title={activeContent.title}
-            className="aspect-video w-full bg-white"
-          />
         ) : (
-          <div className="flex aspect-video items-center justify-center text-white/60">
-            {activeContent ? (
+          <div className="flex aspect-video flex-col items-center justify-center gap-2 text-white/60">
+            {video ? (
               <Play className="size-10" />
             ) : (
-              <p className="text-sm">No content in this lesson yet.</p>
+              <>
+                <p className="text-sm">No video in this lesson.</p>
+                {resources.length > 0 && (
+                  <p className="text-xs">
+                    Open the materials from the Resources tab below.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
-        <span className="pointer-events-none absolute right-3 top-3 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/80">
-          Stream-Only
-        </span>
+        {video && (
+          <span className="pointer-events-none absolute right-3 top-3 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/80">
+            Stream-Only
+          </span>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-4">
@@ -197,6 +218,7 @@ export default function LessonPlayer() {
               )}
             >
               {t}
+              {t === "resources" && resources.length > 0 && ` (${resources.length})`}
             </button>
           ))}
         </div>
@@ -210,10 +232,16 @@ export default function LessonPlayer() {
               {resources.map((r) => (
                 <li key={r.id}>
                   <button
-                    onClick={() => setActiveContent(r)}
+                    onClick={() => openResource(r)}
                     className="flex items-center gap-2 text-primary hover:underline"
                   >
-                    <FileText className="size-4" /> {r.title}
+                    {r.type === "image" ? (
+                      <Image className="size-4" />
+                    ) : (
+                      <FileText className="size-4" />
+                    )}
+                    {r.title}
+                    <ExternalLink className="size-3 text-muted-foreground" />
                   </button>
                 </li>
               ))}
