@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { EmptyState } from "@/components/EmptyState";
+import { ModuleCoverThumb } from "@/components/ModuleCoverThumb";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
@@ -131,9 +132,7 @@ export default function Dashboard() {
               <motion.div key={m.id} variants={fadeInUp()} whileHover={{ y: -3 }}>
                 <Card className="h-full gap-3 py-4">
                   <CardContent className="flex h-full flex-col space-y-3 px-4">
-                    <div className="flex aspect-video items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-primary/5">
-                      <BookOpen className="size-8 text-primary/60" />
-                    </div>
+                    <ModuleCoverThumb module={m} />
                     <div className="flex-1">
                       <p className="font-semibold">{m.title}</p>
                       <p className="mt-1 line-clamp-2 font-body text-xs text-muted-foreground">
