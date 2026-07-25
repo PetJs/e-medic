@@ -8,6 +8,7 @@ import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import Dashboard from "@/pages/app/Dashboard";
 import Modules from "@/pages/app/Modules";
+import CourseDetail from "@/pages/app/CourseDetail";
 import ModuleDetail from "@/pages/app/ModuleDetail";
 import LessonPlayer from "@/pages/app/LessonPlayer";
 import Payments from "@/pages/app/Payments";
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "/dashboard", element: <Dashboard /> },
           { path: "/modules", element: <Modules /> },
+          { path: "/courses/:id", element: <CourseDetail /> },
           { path: "/modules/:id", element: <ModuleDetail /> },
           { path: "/lessons/:id", element: <LessonPlayer /> },
           { path: "/payments", element: <Payments /> },

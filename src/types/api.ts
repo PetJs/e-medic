@@ -24,6 +24,10 @@ export interface Course {
   created_at: string;
 }
 
+export interface CourseDetail extends Course {
+  modules: Module[];
+}
+
 export interface Module {
   id: string;
   course_id: string;
@@ -31,6 +35,8 @@ export interface Module {
   description: string;
   order: number;
   is_premium: boolean;
+  cover_image_url?: string;
+  cover_image_status?: "pending" | "ready" | "failed";
   lesson_count?: number;
   total_duration?: number;
   created_at: string;
