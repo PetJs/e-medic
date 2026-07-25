@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, FileText, Plus, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { Content, Course, Lesson, Module } from "@/types/api";
 
 interface LessonDetail extends Lesson {
@@ -49,6 +58,7 @@ export default function AdminModules() {
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   const loadCourses = useCallback(() => {
     api<{ courses: Course[] }>("/courses")
@@ -139,6 +149,19 @@ export default function AdminModules() {
       toast.success("Lesson created.");
     } catch (err) {
       handleError(err);
+    }
+  }
+
+  async function regenerateCover(mod: Module) {
+    setRegeneratingId(mod.id);
+    try {
+      await api(`/admin/modules/${mod.id}/regenerate-cover`, { method: "POST" });
+      toast.success(`Regenerating cover for "${mod.title}"…`);
+      loadModules(mod.course_id);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -276,10 +299,39 @@ export default function AdminModules() {
                             ) : (
                               <ChevronRight className="size-4 text-muted-foreground" />
                             )}
+                            {mod.cover_image_status === "ready" && mod.cover_image_url ? (
+                              <img
+                                src={mod.cover_image_url}
+                                alt=""
+                                className="size-8 shrink-0 rounded object-cover"
+                              />
+                            ) : (
+                              <span className="flex size-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                                <BookOpen className="size-4" />
+                              </span>
+                            )}
                             <span className="flex-1 text-sm font-medium">{mod.title}</span>
                             <Badge variant={mod.is_premium ? "premium" : "success"}>
                               {mod.is_premium ? "Premium" : "Free Preview"}
                             </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              title="Regenerate cover"
+                              disabled={regeneratingId === mod.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                regenerateCover(mod);
+                              }}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "size-3.5",
+                                  regeneratingId === mod.id && "animate-spin"
+                                )}
+                              />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
