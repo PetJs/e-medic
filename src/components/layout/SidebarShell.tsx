@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { LogOut, Menu, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -22,6 +22,8 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  /** Extra path prefixes (besides `to`) that should also highlight this item. */
+  matchPrefixes?: string[];
 }
 
 function NavList({
@@ -31,36 +33,43 @@ function NavList({
   navItems: NavItem[];
   onNavigate?: () => void;
 }) {
+  const location = useLocation();
+
   return (
     <nav className="flex flex-1 flex-col gap-1 px-3">
-      {navItems.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
-              isActive && "text-primary"
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <motion.span
-                  layoutId="active-nav-pill"
-                  className="absolute inset-0 rounded-lg bg-primary/10"
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                />
-              )}
-              <Icon className="relative size-4.5" strokeWidth={2} />
-              <span className="relative">{label}</span>
-            </>
-          )}
-        </NavLink>
-      ))}
+      {navItems.map(({ to, label, icon: Icon, end, matchPrefixes }) => {
+        const extraActive = matchPrefixes?.some(
+          (p) => location.pathname === p || location.pathname.startsWith(p + "/")
+        );
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                (isActive || extraActive) && "text-primary"
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                {(isActive || extraActive) && (
+                  <motion.span
+                    layoutId="active-nav-pill"
+                    className="absolute inset-0 rounded-lg bg-primary/10"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                  />
+                )}
+                <Icon className="relative size-4.5" strokeWidth={2} />
+                <span className="relative">{label}</span>
+              </>
+            )}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
