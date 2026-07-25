@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { motion } from "framer-motion";
-import { CheckCircle2, Clock, Lock, Play } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Lock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
@@ -58,9 +58,17 @@ export default function ModuleDetail() {
   }
 
   const locked = module.is_premium && !hasAccess;
+  const hasCover = module.cover_image_status === "ready" && module.cover_image_url;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <Link
+        to={`/courses/${module.course_id}`}
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" /> Back to course
+      </Link>
+
       <div className="text-center">
         <h1 className="text-3xl font-extrabold tracking-tight">{module.title}</h1>
         {locked && (
@@ -72,8 +80,16 @@ export default function ModuleDetail() {
       </div>
 
       <Card className="gap-0 overflow-hidden py-0">
-        <div className="flex aspect-2/1 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-brand-amber/10">
-          <span className="flex size-16 items-center justify-center rounded-full bg-background/70">
+        <div
+          className={
+            hasCover
+              ? "relative flex aspect-2/1 items-center justify-center bg-cover bg-center"
+              : "flex aspect-2/1 items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-brand-amber/10"
+          }
+          style={hasCover ? { backgroundImage: `url(${module.cover_image_url})` } : undefined}
+        >
+          {hasCover && <div className="absolute inset-0 bg-black/25" />}
+          <span className="relative flex size-16 items-center justify-center rounded-full bg-background/70">
             {locked ? (
               <Lock className="size-6 text-muted-foreground" />
             ) : (
