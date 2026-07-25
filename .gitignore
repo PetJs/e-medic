@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 
+e-medic.code-workspace
 .env
 .env.*.local
 
