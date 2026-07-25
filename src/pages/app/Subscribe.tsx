@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/Logo";
+import { fadeInUp } from "@/lib/motion";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -58,33 +62,45 @@ export default function Subscribe() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/40">
+    <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-6">
-          <span className="text-sm font-bold">Jerome's Medical E-Learning</span>
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
+          <Logo />
           <Link
             to="/dashboard"
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" /> Back
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="text-3xl font-extrabold tracking-tight">Unlock Full Access</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Join Jerome's Monthly Access to get all video tutorials, study modules,
-          and community access.
-        </p>
+      <main className="mx-auto max-w-4xl px-6 py-12">
+        <motion.div initial="hidden" animate="show" variants={fadeInUp()}>
+          <Badge variant="premium" className="gap-1.5 px-3 py-1">
+            <Sparkles className="size-3.5" /> Unlock full access
+          </Badge>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">
+            One plan. Every module.
+          </h1>
+          <p className="mt-2 max-w-lg font-body text-sm text-muted-foreground">
+            Join Jerome's Monthly Access to stream every video lesson, study
+            module, and resource — no per-course paywalls.
+          </p>
+        </motion.div>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
-          <Card>
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={fadeInUp(0.1)}
+          className="mt-8 grid gap-6 md:grid-cols-2"
+        >
+          <Card className="border-primary/30">
             <CardContent className="space-y-4">
               <p className="font-semibold">Jerome's Monthly Access</p>
               {plan ? (
                 <p>
-                  <span className="text-3xl font-extrabold">
+                  <span className="text-4xl font-extrabold tracking-tight">
                     {formatAmount(plan.amount, plan.currency)}
                   </span>
                   <span className="text-sm text-muted-foreground"> / {plan.interval}</span>
@@ -92,8 +108,8 @@ export default function Subscribe() {
               ) : (
                 <p className="text-sm text-muted-foreground">Loading plan…</p>
               )}
-              <hr />
-              <ul className="space-y-2 text-sm">
+              <hr className="border-border" />
+              <ul className="space-y-2.5 text-sm">
                 {(plan?.features?.length
                   ? plan.features
                   : [
@@ -104,7 +120,7 @@ export default function Subscribe() {
                     ]
                 ).map((f) => (
                   <li key={f} className="flex items-center gap-2">
-                    <CheckCircle2 className="size-4 text-emerald-500" /> {f}
+                    <CheckCircle2 className="size-4 text-success" /> {f}
                   </li>
                 ))}
               </ul>
@@ -120,13 +136,12 @@ export default function Subscribe() {
             )}
             <Card>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="font-body text-sm text-muted-foreground">
                   You'll be securely redirected to Paystack to complete your
                   payment with card, bank transfer, or USSD.
                 </p>
                 <p className="text-sm">
-                  Paying as{" "}
-                  <span className="font-medium">{user?.email}</span>
+                  Paying as <span className="font-medium">{user?.email}</span>
                 </p>
                 <Button
                   className="w-full"
@@ -146,7 +161,7 @@ export default function Subscribe() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </motion.div>
       </main>
     </div>
   );

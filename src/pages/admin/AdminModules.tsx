@@ -1,16 +1,43 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ChevronDown, ChevronRight, FileText, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/PageHeader";
 import { api, ApiError } from "@/lib/api";
 import type { Content, Course, Lesson, Module } from "@/types/api";
 
 interface LessonDetail extends Lesson {
   contents: Content[];
 }
+
+type PendingDelete =
+  | { kind: "course"; item: Course }
+  | { kind: "module"; item: Module }
+  | { kind: "lesson"; item: Lesson }
+  | { kind: "content"; item: Content };
+
+const deleteCopy: Record<PendingDelete["kind"], (name: string) => string> = {
+  course: (name) =>
+    `Delete course "${name}"? All its modules, lessons, and uploaded files will be permanently removed.`,
+  module: (name) =>
+    `Delete module "${name}"? All its lessons and uploaded files will be permanently removed.`,
+  lesson: (name) => `Delete lesson "${name}"? Its uploaded files will be permanently removed.`,
+  content: (name) => `Delete "${name}"? The file will be permanently removed.`,
+};
 
 export default function AdminModules() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -20,7 +47,8 @@ export default function AdminModules() {
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadCourses = useCallback(() => {
     api<{ courses: Course[] }>("/courses")
@@ -55,25 +83,21 @@ export default function AdminModules() {
   }
 
   function handleError(err: unknown) {
-    setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    toast.error(err instanceof ApiError ? err.message : "Something went wrong.");
   }
 
   async function createCourse(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form));
     try {
       await api("/admin/courses", {
         method: "POST",
-        body: {
-          title: data.title,
-          description: data.description,
-          is_published: true,
-        },
+        body: { title: data.title, description: data.description, is_published: true },
       });
       form.reset();
       loadCourses();
+      toast.success("Course created.");
     } catch (err) {
       handleError(err);
     }
@@ -81,7 +105,6 @@ export default function AdminModules() {
 
   async function createModule(e: React.FormEvent<HTMLFormElement>, courseId: string) {
     e.preventDefault();
-    setError(null);
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form));
     try {
@@ -96,6 +119,7 @@ export default function AdminModules() {
       });
       form.reset();
       loadModules(courseId);
+      toast.success("Module created.");
     } catch (err) {
       handleError(err);
     }
@@ -103,102 +127,72 @@ export default function AdminModules() {
 
   async function createLesson(e: React.FormEvent<HTMLFormElement>, moduleId: string) {
     e.preventDefault();
-    setError(null);
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form));
     try {
       await api("/admin/lessons", {
         method: "POST",
-        body: {
-          module_id: moduleId,
-          title: data.title,
-          description: data.description,
-        },
+        body: { module_id: moduleId, title: data.title, description: data.description },
       });
       form.reset();
       loadLessons(moduleId);
+      toast.success("Lesson created.");
     } catch (err) {
       handleError(err);
     }
   }
 
-  async function deleteCourse(course: Course) {
-    if (
-      !window.confirm(
-        `Delete course "${course.title}"? All its modules, lessons, and uploaded files will be permanently removed.`
-      )
-    )
-      return;
-    setError(null);
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await api(`/admin/courses/${course.id}`, { method: "DELETE" });
-      if (expandedCourse === course.id) setExpandedCourse(null);
-      loadCourses();
+      switch (pendingDelete.kind) {
+        case "course": {
+          const course = pendingDelete.item;
+          await api(`/admin/courses/${course.id}`, { method: "DELETE" });
+          if (expandedCourse === course.id) setExpandedCourse(null);
+          loadCourses();
+          break;
+        }
+        case "module": {
+          const mod = pendingDelete.item;
+          await api(`/admin/modules/${mod.id}`, { method: "DELETE" });
+          if (expandedModule === mod.id) setExpandedModule(null);
+          loadModules(mod.course_id);
+          break;
+        }
+        case "lesson": {
+          const lesson = pendingDelete.item;
+          await api(`/admin/lessons/${lesson.id}`, { method: "DELETE" });
+          if (expandedLesson === lesson.id) setExpandedLesson(null);
+          loadLessons(lesson.module_id);
+          break;
+        }
+        case "content": {
+          const content = pendingDelete.item;
+          await api(`/admin/content/${content.id}`, { method: "DELETE" });
+          loadContents(content.lesson_id);
+          break;
+        }
+      }
+      toast.success("Deleted successfully.");
+      setPendingDelete(null);
     } catch (err) {
       handleError(err);
+    } finally {
+      setDeleting(false);
     }
   }
 
-  async function deleteModule(mod: Module) {
-    if (
-      !window.confirm(
-        `Delete module "${mod.title}"? All its lessons and uploaded files will be permanently removed.`
-      )
-    )
-      return;
-    setError(null);
-    try {
-      await api(`/admin/modules/${mod.id}`, { method: "DELETE" });
-      if (expandedModule === mod.id) setExpandedModule(null);
-      loadModules(mod.course_id);
-    } catch (err) {
-      handleError(err);
-    }
-  }
-
-  async function deleteLesson(lesson: Lesson) {
-    if (
-      !window.confirm(
-        `Delete lesson "${lesson.title}"? Its uploaded files will be permanently removed.`
-      )
-    )
-      return;
-    setError(null);
-    try {
-      await api(`/admin/lessons/${lesson.id}`, { method: "DELETE" });
-      if (expandedLesson === lesson.id) setExpandedLesson(null);
-      loadLessons(lesson.module_id);
-    } catch (err) {
-      handleError(err);
-    }
-  }
-
-  async function deleteContent(content: Content) {
-    if (!window.confirm(`Delete "${content.title}"? The file will be permanently removed.`))
-      return;
-    setError(null);
-    try {
-      await api(`/admin/content/${content.id}`, { method: "DELETE" });
-      loadContents(content.lesson_id);
-    } catch (err) {
-      handleError(err);
-    }
-  }
+  const deleteName =
+    pendingDelete?.kind === "content" ? pendingDelete.item.title : pendingDelete?.item.title;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Modules</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Organize your content: courses contain modules, modules contain lessons.
-        </p>
-      </div>
-
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <PageHeader
+        title="Modules"
+        description="Organize your content: courses contain modules, modules contain lessons."
+      />
 
       {/* New course */}
       <Card>
@@ -228,11 +222,11 @@ export default function AdminModules() {
             const courseOpen = expandedCourse === course.id;
             const modules = modulesByCourse[course.id] ?? [];
             return (
-              <Card key={course.id} className="gap-0 py-0">
+              <Card key={course.id} className="gap-0 overflow-hidden py-0">
                 <div
                   role="button"
                   tabIndex={0}
-                  className="flex w-full cursor-pointer items-center gap-2 px-5 py-4 text-left"
+                  className="flex w-full cursor-pointer items-center gap-2 px-5 py-4 text-left transition-colors hover:bg-accent/50"
                   onClick={() => {
                     setExpandedCourse(courseOpen ? null : course.id);
                     if (!courseOpen) loadModules(course.id);
@@ -254,7 +248,7 @@ export default function AdminModules() {
                     title="Delete course"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteCourse(course);
+                      setPendingDelete({ kind: "course", item: course });
                     }}
                   >
                     <Trash2 className="size-4" />
@@ -271,7 +265,7 @@ export default function AdminModules() {
                           <div
                             role="button"
                             tabIndex={0}
-                            className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left"
+                            className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-accent/50"
                             onClick={() => {
                               setExpandedModule(modOpen ? null : mod.id);
                               if (!modOpen) loadLessons(mod.id);
@@ -283,7 +277,7 @@ export default function AdminModules() {
                               <ChevronRight className="size-4 text-muted-foreground" />
                             )}
                             <span className="flex-1 text-sm font-medium">{mod.title}</span>
-                            <Badge variant={mod.is_premium ? "secondary" : "success"}>
+                            <Badge variant={mod.is_premium ? "premium" : "success"}>
                               {mod.is_premium ? "Premium" : "Free Preview"}
                             </Badge>
                             <Button
@@ -293,7 +287,7 @@ export default function AdminModules() {
                               title="Delete module"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteModule(mod);
+                                setPendingDelete({ kind: "module", item: mod });
                               }}
                             >
                               <Trash2 className="size-3.5" />
@@ -310,6 +304,7 @@ export default function AdminModules() {
                                       <li key={l.id}>
                                         <div className="flex items-center gap-1">
                                           <button
+                                            type="button"
                                             className="flex flex-1 items-center gap-1 py-1 text-left text-muted-foreground hover:text-foreground"
                                             onClick={() => {
                                               setExpandedLesson(lessonOpen ? null : l.id);
@@ -328,7 +323,9 @@ export default function AdminModules() {
                                             size="icon"
                                             className="size-6 text-muted-foreground hover:text-destructive"
                                             title="Delete lesson"
-                                            onClick={() => deleteLesson(l)}
+                                            onClick={() =>
+                                              setPendingDelete({ kind: "lesson", item: l })
+                                            }
                                           >
                                             <Trash2 className="size-3" />
                                           </Button>
@@ -355,7 +352,9 @@ export default function AdminModules() {
                                                     size="icon"
                                                     className="size-5 text-muted-foreground hover:text-destructive"
                                                     title="Delete file"
-                                                    onClick={() => deleteContent(c)}
+                                                    onClick={() =>
+                                                      setPendingDelete({ kind: "content", item: c })
+                                                    }
                                                   >
                                                     <Trash2 className="size-3" />
                                                   </Button>
@@ -415,6 +414,33 @@ export default function AdminModules() {
           })}
         </div>
       )}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pendingDelete?.kind}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete && deleteCopy[pendingDelete.kind](deleteName ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

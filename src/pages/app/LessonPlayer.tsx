@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { ArrowLeft, CheckCircle2, ExternalLink, FileText, Image, Play } from "lucide-react";
+import { toast } from "sonner";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  Image,
+  Play,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, ApiError } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import type { Content, Lesson, Progress } from "@/types/api";
 
 interface LessonDetail extends Lesson {
@@ -20,7 +29,6 @@ export default function LessonPlayer() {
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"description" | "resources">("description");
   const [completed, setCompleted] = useState(false);
   const resumePosRef = useRef(0);
   const lastReportRef = useRef(0);
@@ -77,6 +85,7 @@ export default function LessonPlayer() {
       .catch(() => {
         win?.close();
         setError("Failed to open resource.");
+        toast.error("Failed to open resource.");
       });
   }
 
@@ -119,11 +128,16 @@ export default function LessonPlayer() {
     reportProgress({ progress_pct: 100, is_completed: true });
   }
 
+  function handleMarkComplete() {
+    reportProgress({ progress_pct: 100, is_completed: true });
+    toast.success("Lesson marked as complete.");
+  }
+
   if (error === "subscription") {
     return (
       <div className="mx-auto max-w-md py-20 text-center">
         <h1 className="text-xl font-bold">Subscription required</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 font-body text-sm text-muted-foreground">
           This lesson is part of Jerome's premium content. Subscribe to stream it.
         </p>
         <Button className="mt-6" asChild>
@@ -145,13 +159,13 @@ export default function LessonPlayer() {
     <div className="mx-auto max-w-4xl space-y-6">
       <Link
         to={`/modules/${lesson.module_id}`}
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" /> Back to module
       </Link>
 
       {/* Player — videos only */}
-      <div className="relative overflow-hidden rounded-xl bg-black">
+      <div className="relative overflow-hidden rounded-xl bg-black shadow-sm">
         {video && streamUrl ? (
           <video
             key={streamUrl}
@@ -168,7 +182,7 @@ export default function LessonPlayer() {
         ) : (
           <div className="flex aspect-video flex-col items-center justify-center gap-2 text-white/60">
             {video ? (
-              <Play className="size-10" />
+              <Play className="size-10 animate-pulse" />
             ) : (
               <>
                 <p className="text-sm">No video in this lesson.</p>
@@ -182,7 +196,7 @@ export default function LessonPlayer() {
           </div>
         )}
         {video && (
-          <span className="pointer-events-none absolute right-3 top-3 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/80">
+          <span className="pointer-events-none absolute top-3 right-3 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/80 uppercase">
             Stream-Only
           </span>
         )}
@@ -191,42 +205,32 @@ export default function LessonPlayer() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{lesson.title}</h1>
         {completed ? (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="size-4" /> Completed
-          </span>
+          <Badge variant="success" className="gap-1.5 py-1">
+            <CheckCircle2 className="size-3.5" /> Completed
+          </Badge>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reportProgress({ progress_pct: 100, is_completed: true })}
-          >
+          <Button variant="outline" size="sm" onClick={handleMarkComplete}>
             <CheckCircle2 className="size-4" /> Mark as complete
           </Button>
         )}
       </div>
 
-      {/* Tabs */}
-      <div>
-        <div className="flex gap-6 border-b text-sm">
-          {(["description", "resources"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "-mb-px border-b-2 border-transparent py-2 font-medium capitalize text-muted-foreground transition-colors hover:text-foreground",
-                tab === t && "border-primary text-primary"
-              )}
-            >
-              {t}
-              {t === "resources" && resources.length > 0 && ` (${resources.length})`}
-            </button>
-          ))}
-        </div>
-        <div className="py-4 text-sm leading-relaxed text-muted-foreground">
-          {tab === "description" ? (
-            <p>{lesson.description || "No description for this lesson."}</p>
-          ) : resources.length === 0 ? (
-            <p>No additional resources.</p>
+      <Tabs defaultValue="description">
+        <TabsList>
+          <TabsTrigger value="description">Description</TabsTrigger>
+          <TabsTrigger value="resources">
+            Resources{resources.length > 0 && ` (${resources.length})`}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent
+          value="description"
+          className="py-4 font-body text-sm leading-relaxed text-muted-foreground"
+        >
+          {lesson.description || "No description for this lesson."}
+        </TabsContent>
+        <TabsContent value="resources" className="py-4 text-sm">
+          {resources.length === 0 ? (
+            <p className="font-body text-muted-foreground">No additional resources.</p>
           ) : (
             <ul className="space-y-2">
               {resources.map((r) => (
@@ -247,8 +251,8 @@ export default function LessonPlayer() {
               ))}
             </ul>
           )}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/PageHeader";
 import { api } from "@/lib/api";
 import type { ListUsersResponse, User } from "@/types/api";
 
@@ -26,58 +36,56 @@ export default function Students() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Students</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {total.toLocaleString()} registered user{total === 1 ? "" : "s"}.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Students"
+        description={`${total.toLocaleString()} registered user${total === 1 ? "" : "s"}.`}
+      />
 
-      <div className="overflow-x-auto rounded-xl border bg-background">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Joined</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="overflow-hidden py-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Joined</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                   Loading…
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                   No students yet.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               users.map((u) => (
-                <tr key={u.id} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium">
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">
                     {u.first_name} {u.last_name}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  <TableCell>
                     <Badge variant={u.role === "admin" ? "default" : "secondary"}>
                       {u.role}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">

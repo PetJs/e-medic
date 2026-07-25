@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { FileUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/PageHeader";
 import { api, apiUpload, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Module } from "@/types/api";
@@ -19,8 +21,6 @@ export default function Uploads() {
   const [title, setTitle] = useState("");
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -54,8 +54,6 @@ export default function Uploads() {
 
   async function handleUpload() {
     if (!file || !lessonId) return;
-    setError(null);
-    setMessage(null);
     setUploading(true);
     try {
       const formData = new FormData();
@@ -63,40 +61,26 @@ export default function Uploads() {
       formData.append("title", title || file.name);
       formData.append("file", file);
       await apiUpload("/admin/content", formData);
-      setMessage(`"${title || file.name}" uploaded successfully.`);
+      toast.success(`"${title || file.name}" uploaded successfully.`);
       setFile(null);
       setTitle("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Upload failed.");
+      toast.error(err instanceof ApiError ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
   }
 
   const selectClass =
-    "border-input flex h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+    "border-input flex h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-50";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Uploads</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload videos, PDFs, or images into a lesson. Files are stored privately
-          and streamed with short-lived signed URLs.
-        </p>
-      </div>
-
-      {message && (
-        <p className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-          <CheckCircle2 className="size-4" /> {message}
-        </p>
-      )}
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <PageHeader
+        title="Uploads"
+        description="Upload videos, PDFs, or images into a lesson. Files are stored privately and streamed with short-lived signed URLs."
+      />
 
       <Card>
         <CardContent className="space-y-5">
@@ -161,11 +145,18 @@ export default function Uploads() {
               dragging && "border-primary bg-primary/5"
             )}
           >
-            <FileUp className="size-8 text-muted-foreground" />
+            <span
+              className={cn(
+                "flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform",
+                dragging && "scale-110"
+              )}
+            >
+              <FileUp className="size-6" />
+            </span>
             {file ? (
               <p className="text-sm font-medium">{file.name}</p>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="font-body text-sm text-muted-foreground">
                 Drag &amp; drop video, PDF, or image here, or click to browse
               </p>
             )}

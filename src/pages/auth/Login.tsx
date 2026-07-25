@@ -5,6 +5,7 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthShell } from "@/components/layout/AuthShell";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
@@ -54,76 +55,75 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-background to-teal-50 px-4 py-10 dark:from-background dark:to-background">
-      <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-xl md:p-10">
-        <h1 className="text-2xl font-bold">Welcome Back</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Log in to continue your learning journey.
-        </p>
+    <AuthShell
+      headline="Pick up right where you left off"
+      subtext="Your modules, progress, and saved lessons are waiting for you."
+    >
+      <h1 className="text-2xl font-bold">Welcome back</h1>
+      <p className="mt-1 font-body text-sm text-muted-foreground">
+        Log in to continue your learning journey.
+      </p>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
-          {errors.form && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {errors.form}
-            </p>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email address"
-                className="pl-9"
-                aria-invalid={!!errors.email}
-              />
-            </div>
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                className="px-9"
-                aria-invalid={!!errors.password}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
-          </div>
-
-          <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-            {submitting ? "Logging in…" : "Log In"}
-          </Button>
-
-          <p className="text-center text-sm text-muted-foreground">
-            New here?{" "}
-            <Link to="/signup" className="font-medium text-primary hover:underline">
-              Create an account
-            </Link>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        {errors.form && (
+          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errors.form}
           </p>
-        </form>
-      </div>
-    </div>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email Address</Label>
+          <div className="relative">
+            <Mail className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Enter your email address"
+              className="pl-9"
+              aria-invalid={!!errors.email}
+            />
+          </div>
+          {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              className="px-9"
+              aria-invalid={!!errors.password}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-xs text-destructive">{errors.password}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+          {submitting ? "Logging in…" : "Log In"}
+        </Button>
+
+        <p className="text-center text-sm text-muted-foreground">
+          New here?{" "}
+          <Link to="/signup" className="font-medium text-primary hover:underline">
+            Create an account
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { ArrowRight, BarChart3, BadgeCheck, BookOpen } from "lucide-react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { ArrowRight, BadgeCheck, BookOpen, Flame, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
+import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { fadeInUp, staggerContainer } from "@/lib/motion";
 import type { Module, Progress, Subscription } from "@/types/api";
 
 export default function Dashboard() {
@@ -16,136 +22,132 @@ export default function Dashboard() {
   useEffect(() => {
     api<Subscription[]>("/subscriptions")
       .then((subs) => setSubscription(subs?.find((s) => s.status === "active") ?? null))
-      .catch(() => {});
+      .catch(() => toast.error("Couldn't load your subscription status."));
     api<Module[]>("/modules")
       .then((mods) => setModules(mods ?? []))
-      .catch(() => {});
+      .catch(() => toast.error("Couldn't load modules."));
     api<Progress[]>("/progress")
       .then((p) => setProgress(p ?? []))
-      .catch(() => {});
+      .catch(() => toast.error("Couldn't load your progress."));
   }, []);
 
   const completedLessons = progress.filter((p) => p.is_completed).length;
   const inProgressLessons = progress.filter((p) => !p.is_completed).length;
-
   const hasActiveSub = subscription?.status === "active";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      {/* Welcome */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Welcome back, {user?.first_name}!</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Let's continue your learning journey.
-          </p>
-        </div>
-        <Button asChild disabled={!hasActiveSub}>
-          <Link to="/modules">
-            Continue Learning <ArrowRight className="size-4" />
-          </Link>
-        </Button>
+    <div className="space-y-8">
+      <PageHeader
+        title={`Welcome back, ${user?.first_name}!`}
+        description="Let's continue your learning journey."
+        actions={
+          hasActiveSub ? (
+            <Button asChild>
+              <Link to="/modules">
+                Continue Learning <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link to="/subscribe">Subscribe Now</Link>
+            </Button>
+          )
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Lessons Completed"
+          value={completedLessons}
+          icon={BadgeCheck}
+          tone="success"
+        />
+        <StatCard
+          label="In Progress"
+          value={inProgressLessons}
+          icon={Flame}
+          tone="amber"
+          delay={0.05}
+        />
+        <StatCard
+          label="Modules Available"
+          value={modules.length}
+          icon={GraduationCap}
+          delay={0.1}
+        />
       </div>
 
-      {/* Overview */}
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Overview</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <BadgeCheck className="size-4" />
-                </span>
-                Subscription Status
-              </div>
-              {hasActiveSub ? (
-                <>
-                  <p className="text-lg font-bold">Monthly Access</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your subscription is active and renews on{" "}
-                    {new Date(subscription!.current_period_end).toLocaleDateString(
-                      undefined,
-                      { month: "short", day: "numeric", year: "numeric" }
-                    )}
-                    .
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-bold">No Active Plan</p>
-                  <p className="text-sm text-muted-foreground">
-                    Subscribe to unlock all modules and stream every lesson.
-                  </p>
-                  <Button size="sm" className="mt-2" asChild>
-                    <Link to="/subscribe">Subscribe Now</Link>
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
+      <Card>
+        <CardContent className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Subscription Status
+            </p>
+            {hasActiveSub ? (
+              <>
+                <p className="mt-1 text-lg font-bold">Monthly Access</p>
+                <p className="font-body text-sm text-muted-foreground">
+                  Active — renews on{" "}
+                  {new Date(subscription!.current_period_end).toLocaleDateString(
+                    undefined,
+                    { month: "short", day: "numeric", year: "numeric" }
+                  )}
+                  .
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-lg font-bold">No Active Plan</p>
+                <p className="font-body text-sm text-muted-foreground">
+                  Subscribe to unlock all modules and stream every lesson.
+                </p>
+              </>
+            )}
+          </div>
+          {!hasActiveSub && (
+            <Button asChild>
+              <Link to="/subscribe">Subscribe Now</Link>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
-          <Card>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <BarChart3 className="size-4" />
-                </span>
-                Learning Progress
-              </div>
-              <div className="flex items-end gap-8 pt-1">
-                <div>
-                  <p className="text-2xl font-bold">{completedLessons}</p>
-                  <p className="text-xs text-muted-foreground">Lessons Completed</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{inProgressLessons}</p>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{modules.length}</p>
-                  <p className="text-xs text-muted-foreground">Modules Available</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Upcoming modules */}
       <div>
         <h2 className="mb-4 text-lg font-semibold">Explore Modules</h2>
         {modules.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
-              <BookOpen className="size-8 text-muted-foreground" />
-              <p className="font-medium">No modules published yet</p>
-              <p className="text-sm text-muted-foreground">
-                Check back soon — new content is on the way.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={BookOpen}
+            title="No modules published yet"
+            description="Check back soon — new content is on the way."
+          />
         ) : (
-          <div className="grid gap-4 md:grid-cols-3">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={staggerContainer}
+            className="grid gap-4 md:grid-cols-3"
+          >
             {modules.slice(0, 3).map((m) => (
-              <Card key={m.id} className="gap-3 py-4">
-                <CardContent className="space-y-3 px-4">
-                  <div className="flex aspect-video items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-teal-100 dark:to-teal-950">
-                    <BookOpen className="size-8 text-primary/60" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{m.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {m.description}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link to={`/modules/${m.id}`}>View Details</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+              <motion.div key={m.id} variants={fadeInUp()} whileHover={{ y: -3 }}>
+                <Card className="h-full gap-3 py-4">
+                  <CardContent className="flex h-full flex-col space-y-3 px-4">
+                    <div className="flex aspect-video items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-primary/5">
+                      <BookOpen className="size-8 text-primary/60" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{m.title}</p>
+                      <p className="mt-1 line-clamp-2 font-body text-xs text-muted-foreground">
+                        {m.description}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full" asChild>
+                      <Link to={`/modules/${m.id}`}>View Details</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>
