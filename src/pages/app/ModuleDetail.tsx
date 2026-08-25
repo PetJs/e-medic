@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Clock, Lock, Play } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Lock, MessageSquare, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
@@ -109,6 +109,14 @@ export default function ModuleDetail() {
           </p>
         </CardContent>
       </Card>
+
+      <div className="flex justify-center">
+        <Button variant="outline" asChild>
+          <Link to={`/modules/${module.id}/discussion`}>
+            <MessageSquare className="size-4" /> Discussion
+          </Link>
+        </Button>
+      </div>
 
       {locked ? (
         <div className="flex justify-center">

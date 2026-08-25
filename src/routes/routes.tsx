@@ -10,6 +10,7 @@ import Dashboard from "@/pages/app/Dashboard";
 import Modules from "@/pages/app/Modules";
 import CourseDetail from "@/pages/app/CourseDetail";
 import ModuleDetail from "@/pages/app/ModuleDetail";
+import ModuleDiscussion from "@/pages/app/ModuleDiscussion";
 import LessonPlayer from "@/pages/app/LessonPlayer";
 import Payments from "@/pages/app/Payments";
 import Profile from "@/pages/app/Profile";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: "/modules", element: <Modules /> },
           { path: "/courses/:id", element: <CourseDetail /> },
           { path: "/modules/:id", element: <ModuleDetail /> },
+          { path: "/modules/:id/discussion", element: <ModuleDiscussion /> },
           { path: "/lessons/:id", element: <LessonPlayer /> },
           { path: "/payments", element: <Payments /> },
           { path: "/profile", element: <Profile /> },

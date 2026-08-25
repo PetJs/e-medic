@@ -99,3 +99,34 @@ export interface ListUsersResponse {
   page: number;
   limit: number;
 }
+
+export interface DiscussionPost {
+  id: string;
+  module_id: string;
+  title: string;
+  body: string;
+  is_pinned: boolean;
+  comment_count: number;
+  author: User;
+  created_at: string;
+}
+
+export interface DiscussionComment {
+  id: string;
+  post_id: string;
+  parent_comment_id?: string | null;
+  body: string;
+  author: User;
+  created_at: string;
+}
+
+export interface ListPostsResponse {
+  posts: DiscussionPost[];
+  total_count: number;
+  page: number;
+  limit: number;
+}
+
+export interface ListCommentsResponse {
+  comments: DiscussionComment[];
+}
