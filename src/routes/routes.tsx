@@ -19,6 +19,7 @@ import PaymentCallback from "@/pages/app/PaymentCallback";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import Students from "@/pages/admin/Students";
 import AdminModules from "@/pages/admin/AdminModules";
+import AdminQuiz from "@/pages/admin/AdminQuiz";
 import Uploads from "@/pages/admin/Uploads";
 
 export const router = createBrowserRouter([
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
           { path: "/admin/students", element: <Students /> },
           { path: "/admin/modules", element: <AdminModules /> },
           { path: "/admin/uploads", element: <Uploads /> },
+          { path: "/admin/quiz", element: <AdminQuiz /> },
         ],
       },
     ],

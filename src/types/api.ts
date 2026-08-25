@@ -130,3 +130,38 @@ export interface ListPostsResponse {
 export interface ListCommentsResponse {
   comments: DiscussionComment[];
 }
+
+export interface QuizOption {
+  id: string;
+  text: string;
+  order: number;
+  is_correct?: boolean; // present only on admin views
+}
+
+export interface QuizQuestion {
+  id: string;
+  lesson_id: string;
+  type: "multiple_choice" | "free_text";
+  prompt: string;
+  order: number;
+  options?: QuizOption[];
+}
+
+export interface QuizAnswer {
+  id: string;
+  question_id: string;
+  user_id: string;
+  selected_option_id?: string;
+  free_text_body?: string;
+  is_correct?: boolean | null;
+  author?: User; // present only on the admin review listing
+  created_at: string;
+}
+
+export interface ListQuizQuestionsResponse {
+  questions: QuizQuestion[];
+}
+
+export interface ListQuizAnswersResponse {
+  answers: QuizAnswer[];
+}

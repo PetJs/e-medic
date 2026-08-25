@@ -6,14 +6,28 @@ import {
   CheckCircle2,
   ExternalLink,
   FileText,
+  HelpCircle,
   Image,
   Play,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, ApiError } from "@/lib/api";
-import type { Content, Lesson, Progress } from "@/types/api";
+import type {
+  Content,
+  ListQuizAnswersResponse,
+  ListQuizQuestionsResponse,
+  Lesson,
+  Progress,
+  QuizAnswer,
+  QuizQuestion,
+} from "@/types/api";
 
 interface LessonDetail extends Lesson {
   contents: Content[];
@@ -24,12 +38,118 @@ interface ContentURL {
   expires_in: number;
 }
 
+function QuizQuestionItem({
+  question,
+  answer,
+  onAnswered,
+}: {
+  question: QuizQuestion;
+  answer?: QuizAnswer;
+  onAnswered: (answer: QuizAnswer) => void;
+}) {
+  const [selected, setSelected] = useState("");
+  const [freeText, setFreeText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (question.type === "multiple_choice" && !selected) return;
+    if (question.type === "free_text" && !freeText.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const body =
+        question.type === "multiple_choice"
+          ? { selected_option_id: selected }
+          : { free_text_body: freeText };
+      const result = await api<QuizAnswer>(`/quiz-questions/${question.id}/answers`, {
+        method: "POST",
+        body,
+      });
+      onAnswered(result);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to submit answer.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (answer) {
+    // Already answered — one attempt only, render read-only.
+    return (
+      <Card>
+        <CardContent className="space-y-2">
+          <p className="font-medium">{question.prompt}</p>
+          {question.type === "multiple_choice" ? (
+            <div className="space-y-1">
+              {question.options?.map((o) => {
+                const isSelected = o.id === answer.selected_option_id;
+                return (
+                  <p
+                    key={o.id}
+                    className={
+                      isSelected
+                        ? answer.is_correct
+                          ? "flex items-center gap-2 rounded-md bg-success/10 px-2 py-1 text-sm text-success"
+                          : "flex items-center gap-2 rounded-md bg-destructive/10 px-2 py-1 text-sm text-destructive"
+                        : "flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground"
+                    }
+                  >
+                    {o.text}
+                  </p>
+                );
+              })}
+              <p className="text-xs text-muted-foreground">
+                {answer.is_correct ? "Correct!" : "Not quite — but you've answered this one."}
+              </p>
+            </div>
+          ) : (
+            <p className="rounded-md bg-muted/40 px-2 py-1 text-sm text-muted-foreground">
+              {answer.free_text_body}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3">
+        <p className="font-medium">{question.prompt}</p>
+        {question.type === "multiple_choice" ? (
+          <RadioGroup value={selected} onValueChange={setSelected}>
+            {question.options?.map((o) => (
+              <div key={o.id} className="flex items-center gap-2">
+                <RadioGroupItem value={o.id} id={o.id} />
+                <Label htmlFor={o.id} className="font-normal">{o.text}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+        ) : (
+          <Textarea
+            value={freeText}
+            onChange={(e) => setFreeText(e.target.value)}
+            placeholder="Type your answer…"
+            rows={3}
+          />
+        )}
+        <Button size="sm" onClick={submit} disabled={submitting}>
+          <Send className="size-3.5" /> {submitting ? "Submitting…" : "Submit"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function LessonPlayer() {
   const { id } = useParams<{ id: string }>();
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [tab, setTab] = useState("description");
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [myAnswers, setMyAnswers] = useState<QuizAnswer[]>([]);
   const resumePosRef = useRef(0);
   const lastReportRef = useRef(0);
 
@@ -41,6 +161,12 @@ export default function LessonPlayer() {
     () => lesson?.contents?.filter((c) => c.type !== "video") ?? [],
     [lesson]
   );
+  const answersByQuestion = useMemo(
+    () => new Map(myAnswers.map((a) => [a.question_id, a])),
+    [myAnswers]
+  );
+  const quizFullyAnswered =
+    questions.length > 0 && questions.every((q) => answersByQuestion.has(q.id));
 
   useEffect(() => {
     if (!id) return;
@@ -58,6 +184,12 @@ export default function LessonPlayer() {
         setCompleted(p.is_completed);
         resumePosRef.current = p.last_position ?? 0;
       })
+      .catch(() => {});
+    api<ListQuizQuestionsResponse>(`/lessons/${id}/quiz-questions`)
+      .then((res) => setQuestions(res.questions ?? []))
+      .catch(() => {});
+    api<ListQuizAnswersResponse>(`/lessons/${id}/quiz-answers`)
+      .then((res) => setMyAnswers(res.answers ?? []))
       .catch(() => {});
   }, [id]);
 
@@ -100,7 +232,16 @@ export default function LessonPlayer() {
       body: { lesson_id: id, ...body },
     })
       .then((p) => setCompleted(p.is_completed))
-      .catch(() => {});
+      .catch((err) => {
+        // A blocked completion attempt (quiz not finished yet) — point the
+        // student at the quiz instead of a generic error. Background
+        // progress pings (no is_completed) never hit this, so this only
+        // fires for an explicit "mark complete" / video-ended attempt.
+        if (err instanceof ApiError && err.status === 409) {
+          toast.error("Answer the quiz below to finish this lesson.");
+          setTab("quiz");
+        }
+      });
   }
 
   function handleTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
@@ -130,7 +271,16 @@ export default function LessonPlayer() {
 
   function handleMarkComplete() {
     reportProgress({ progress_pct: 100, is_completed: true });
-    toast.success("Lesson marked as complete.");
+  }
+
+  function handleQuestionAnswered(answer: QuizAnswer) {
+    const next = [...myAnswers, answer];
+    setMyAnswers(next);
+    // If that was the last unanswered question, complete the lesson right away.
+    if (questions.length > 0 && questions.every((q) => next.some((a) => a.question_id === q.id))) {
+      reportProgress({ progress_pct: 100, is_completed: true });
+      toast.success("Quiz complete — lesson marked as complete.");
+    }
   }
 
   if (error === "subscription") {
@@ -208,6 +358,11 @@ export default function LessonPlayer() {
           <Badge variant="success" className="gap-1.5 py-1">
             <CheckCircle2 className="size-3.5" /> Completed
           </Badge>
+        ) : questions.length > 0 ? (
+          <Badge variant="secondary" className="gap-1.5 py-1">
+            <HelpCircle className="size-3.5" />
+            {quizFullyAnswered ? "Finishing up…" : "Answer the quiz to finish"}
+          </Badge>
         ) : (
           <Button variant="outline" size="sm" onClick={handleMarkComplete}>
             <CheckCircle2 className="size-4" /> Mark as complete
@@ -215,12 +370,17 @@ export default function LessonPlayer() {
         )}
       </div>
 
-      <Tabs defaultValue="description">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="description">Description</TabsTrigger>
           <TabsTrigger value="resources">
             Resources{resources.length > 0 && ` (${resources.length})`}
           </TabsTrigger>
+          {questions.length > 0 && (
+            <TabsTrigger value="quiz">
+              Quiz ({myAnswers.length}/{questions.length})
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent
           value="description"
@@ -252,6 +412,18 @@ export default function LessonPlayer() {
             </ul>
           )}
         </TabsContent>
+        {questions.length > 0 && (
+          <TabsContent value="quiz" className="space-y-3 py-4">
+            {questions.map((q) => (
+              <QuizQuestionItem
+                key={q.id}
+                question={q}
+                answer={answersByQuestion.get(q.id)}
+                onAnswered={handleQuestionAnswered}
+              />
+            ))}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

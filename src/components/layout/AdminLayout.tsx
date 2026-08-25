@@ -1,4 +1,4 @@
-import { BookOpen, FileUp, LayoutDashboard, Users } from "lucide-react";
+import { BookOpen, FileUp, HelpCircle, LayoutDashboard, Users } from "lucide-react";
 import { SidebarShell, type NavItem } from "@/components/layout/SidebarShell";
 
 const navItems: NavItem[] = [
@@ -6,6 +6,7 @@ const navItems: NavItem[] = [
   { to: "/admin/students", label: "Students", icon: Users },
   { to: "/admin/uploads", label: "Uploads", icon: FileUp },
   { to: "/admin/modules", label: "Modules", icon: BookOpen },
+  { to: "/admin/quiz", label: "Quiz Questions", icon: HelpCircle },
 ];
 
 export default function AdminLayout() {
