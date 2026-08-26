@@ -70,6 +70,7 @@ export interface Subscription {
   status: "pending" | "active" | "canceled" | "expired";
   current_period_start: string;
   current_period_end: string;
+  canceled_at?: string | null;
   created_at: string;
 }
 
