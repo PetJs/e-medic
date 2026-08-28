@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { LogOut, Menu, type LucideIcon } from "lucide-react";
+import { LogOut, Menu, Search, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { SearchDialog } from "@/components/SearchDialog";
 
 export interface NavItem {
   to: string;
@@ -129,14 +130,40 @@ export function SidebarShell({
   roleLabel: string;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
 
   return (
     <div className="min-h-screen bg-muted/30 ml-6">
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r bg-background lg:flex">
-        <Link to={homeTo} className="px-5 py-5">
-          <Logo />
-        </Link>
+        <div className="flex items-center justify-between px-5 py-5">
+          <Link to={homeTo}>
+            <Logo />
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            aria-label="Search"
+            title="Search (Ctrl/Cmd+K)"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-4" />
+          </Button>
+        </div>
         <NavList navItems={navItems} />
         <div className="border-t p-3">
           <UserMenu roleLabel={roleLabel} />
@@ -149,6 +176,14 @@ export function SidebarShell({
           <Logo />
         </Link>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Search"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-5" />
+          </Button>
           <UserMenuCompact roleLabel={roleLabel} />
           <Button
             variant="ghost"

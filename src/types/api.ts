@@ -166,3 +166,46 @@ export interface ListQuizQuestionsResponse {
 export interface ListQuizAnswersResponse {
   answers: QuizAnswer[];
 }
+
+export interface SearchResultItem {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface SearchResponse {
+  courses: SearchResultItem[];
+  modules: SearchResultItem[];
+  lessons: SearchResultItem[];
+}
+
+export interface LessonNote {
+  id: string;
+  lesson_id: string;
+  body: string;
+  video_position: number;
+  created_at: string;
+}
+
+export interface ListNotesResponse {
+  notes: LessonNote[];
+}
+
+export interface DailyMetric {
+  date: string;
+  value: number;
+}
+
+export interface ModuleCompletionRate {
+  module_id: string;
+  module_title: string;
+  completion_pct: number;
+}
+
+export interface AdminAnalytics {
+  revenue_trend: DailyMetric[];
+  signup_trend: DailyMetric[];
+  subscription_trend: DailyMetric[];
+  module_completion_rates: ModuleCompletionRate[];
+  currency: string;
+}

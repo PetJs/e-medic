@@ -20,6 +20,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import Students from "@/pages/admin/Students";
 import AdminModules from "@/pages/admin/AdminModules";
 import AdminQuiz from "@/pages/admin/AdminQuiz";
+import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import Uploads from "@/pages/admin/Uploads";
 
 export const router = createBrowserRouter([
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
           { path: "/admin/modules", element: <AdminModules /> },
           { path: "/admin/uploads", element: <Uploads /> },
           { path: "/admin/quiz", element: <AdminQuiz /> },
+          { path: "/admin/analytics", element: <AdminAnalytics /> },
         ],
       },
     ],

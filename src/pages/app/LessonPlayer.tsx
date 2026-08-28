@@ -9,7 +9,9 @@ import {
   HelpCircle,
   Image,
   Play,
+  Plus,
   Send,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +20,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api";
 import type {
   Content,
+  LessonNote,
+  ListNotesResponse,
   ListQuizAnswersResponse,
   ListQuizQuestionsResponse,
   Lesson,
@@ -28,6 +42,12 @@ import type {
   QuizAnswer,
   QuizQuestion,
 } from "@/types/api";
+
+function formatTimestamp(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 interface LessonDetail extends Lesson {
   contents: Content[];
@@ -150,8 +170,15 @@ export default function LessonPlayer() {
   const [tab, setTab] = useState("description");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [myAnswers, setMyAnswers] = useState<QuizAnswer[]>([]);
+  const [notes, setNotes] = useState<LessonNote[]>([]);
+  const [noteBody, setNoteBody] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
+  const [pendingDeleteNote, setPendingDeleteNote] = useState<LessonNote | null>(null);
+  const [deletingNote, setDeletingNote] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(0);
   const resumePosRef = useRef(0);
   const lastReportRef = useRef(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const video = useMemo(
     () => lesson?.contents?.find((c) => c.type === "video") ?? null,
@@ -190,6 +217,9 @@ export default function LessonPlayer() {
       .catch(() => {});
     api<ListQuizAnswersResponse>(`/lessons/${id}/quiz-answers`)
       .then((res) => setMyAnswers(res.answers ?? []))
+      .catch(() => {});
+    api<ListNotesResponse>(`/lessons/${id}/notes`)
+      .then((res) => setNotes(res.notes ?? []))
       .catch(() => {});
   }, [id]);
 
@@ -246,6 +276,7 @@ export default function LessonPlayer() {
 
   function handleTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
     const el = e.currentTarget;
+    setCurrentPosition(Math.floor(el.currentTime));
     if (!el.duration) return;
     const now = Date.now();
     // Report at most every 10 seconds to keep chatter down
@@ -271,6 +302,41 @@ export default function LessonPlayer() {
 
   function handleMarkComplete() {
     reportProgress({ progress_pct: 100, is_completed: true });
+  }
+
+  function seekTo(position: number) {
+    if (videoRef.current) videoRef.current.currentTime = position;
+  }
+
+  async function submitNote() {
+    if (!id || !noteBody.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const note = await api<LessonNote>(`/lessons/${id}/notes`, {
+        method: "POST",
+        body: { body: noteBody, video_position: currentPosition },
+      });
+      setNotes((prev) => [...prev, note].sort((a, b) => a.video_position - b.video_position));
+      setNoteBody("");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to add note.");
+    } finally {
+      setSubmittingNote(false);
+    }
+  }
+
+  async function confirmDeleteNote() {
+    if (!pendingDeleteNote) return;
+    setDeletingNote(true);
+    try {
+      await api(`/notes/${pendingDeleteNote.id}`, { method: "DELETE" });
+      setNotes((prev) => prev.filter((n) => n.id !== pendingDeleteNote.id));
+      setPendingDeleteNote(null);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete note.");
+    } finally {
+      setDeletingNote(false);
+    }
   }
 
   function handleQuestionAnswered(answer: QuizAnswer) {
@@ -319,6 +385,7 @@ export default function LessonPlayer() {
         {video && streamUrl ? (
           <video
             key={streamUrl}
+            ref={videoRef}
             src={streamUrl}
             controls
             controlsList="nodownload noremoteplayback"
@@ -376,6 +443,9 @@ export default function LessonPlayer() {
           <TabsTrigger value="resources">
             Resources{resources.length > 0 && ` (${resources.length})`}
           </TabsTrigger>
+          <TabsTrigger value="notes">
+            Notes{notes.length > 0 && ` (${notes.length})`}
+          </TabsTrigger>
           {questions.length > 0 && (
             <TabsTrigger value="quiz">
               Quiz ({myAnswers.length}/{questions.length})
@@ -412,6 +482,56 @@ export default function LessonPlayer() {
             </ul>
           )}
         </TabsContent>
+        <TabsContent value="notes" className="space-y-4 py-4">
+          <div className="space-y-2">
+            {notes.length === 0 ? (
+              <p className="font-body text-sm text-muted-foreground">
+                No notes yet — jot one down as you watch.
+              </p>
+            ) : (
+              notes.map((note) => (
+                <div
+                  key={note.id}
+                  className="flex items-start gap-3 rounded-lg border bg-background p-3"
+                >
+                  <button
+                    type="button"
+                    onClick={() => seekTo(note.video_position)}
+                    className="shrink-0 rounded-md bg-primary/10 px-2 py-1 font-mono text-xs font-medium text-primary hover:bg-primary/15"
+                  >
+                    {formatTimestamp(note.video_position)}
+                  </button>
+                  <p className="flex-1 font-body text-sm">{note.body}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    title="Delete note"
+                    onClick={() => setPendingDeleteNote(note)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="space-y-2">
+            <Textarea
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              placeholder="Write a note…"
+              rows={2}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={submitNote}
+              disabled={submittingNote || !noteBody.trim()}
+            >
+              <Plus className="size-3.5" /> Add Note at {formatTimestamp(currentPosition)}
+            </Button>
+          </div>
+        </TabsContent>
         {questions.length > 0 && (
           <TabsContent value="quiz" className="space-y-3 py-4">
             {questions.map((q) => (
@@ -425,6 +545,28 @@ export default function LessonPlayer() {
           </TabsContent>
         )}
       </Tabs>
+
+      <AlertDialog open={!!pendingDeleteNote} onOpenChange={(open) => !open && setPendingDeleteNote(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this note?</AlertDialogTitle>
+            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingNote}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeleteNote();
+              }}
+              disabled={deletingNote}
+            >
+              {deletingNote ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
