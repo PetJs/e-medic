@@ -11,6 +11,12 @@ import { EmptyState } from "@/components/EmptyState";
 import { ModuleCoverThumb } from "@/components/ModuleCoverThumb";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import {
+  accessEndsAt,
+  findActiveSubscription,
+  hasActiveAccess,
+  isInGrace,
+} from "@/lib/subscription";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import type { Module, Progress, Subscription } from "@/types/api";
 
@@ -22,7 +28,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     api<Subscription[]>("/subscriptions")
-      .then((subs) => setSubscription(subs?.find((s) => s.status === "active") ?? null))
+      .then((subs) => setSubscription(findActiveSubscription(subs)))
       .catch(() => toast.error("Couldn't load your subscription status."));
     api<Module[]>("/modules")
       .then((mods) => setModules(mods ?? []))
@@ -34,7 +40,9 @@ export default function Dashboard() {
 
   const completedLessons = progress.filter((p) => p.is_completed).length;
   const inProgressLessons = progress.filter((p) => !p.is_completed).length;
-  const hasActiveSub = subscription?.status === "active";
+  const hasActiveSub = hasActiveAccess(subscription);
+  const inGrace = isInGrace(subscription);
+  const accessEnd = subscription ? accessEndsAt(subscription) : null;
 
   return (
     <div className="space-y-8">
@@ -88,12 +96,26 @@ export default function Dashboard() {
               <>
                 <p className="mt-1 text-lg font-bold">Monthly Access</p>
                 <p className="font-body text-sm text-muted-foreground">
-                  Active — renews on{" "}
-                  {new Date(subscription!.current_period_end).toLocaleDateString(
-                    undefined,
-                    { month: "short", day: "numeric", year: "numeric" }
+                  {inGrace ? (
+                    <>
+                      Grace period — renew by{" "}
+                      {accessEnd?.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      to keep access.
+                    </>
+                  ) : (
+                    <>
+                      Active — renews on{" "}
+                      {new Date(subscription!.current_period_end).toLocaleDateString(
+                        undefined,
+                        { month: "short", day: "numeric", year: "numeric" }
+                      )}
+                      .
+                    </>
                   )}
-                  .
                 </p>
               </>
             ) : (
@@ -105,9 +127,9 @@ export default function Dashboard() {
               </>
             )}
           </div>
-          {!hasActiveSub && (
+          {(!hasActiveSub || inGrace) && (
             <Button asChild>
-              <Link to="/subscribe">Subscribe Now</Link>
+              <Link to="/subscribe">{inGrace ? "Pay Now" : "Subscribe Now"}</Link>
             </Button>
           )}
         </CardContent>

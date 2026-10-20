@@ -35,6 +35,11 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { api, ApiError } from "@/lib/api";
+import {
+  accessEndsAt,
+  findActiveSubscription,
+  isInGrace,
+} from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 import { fadeInUp } from "@/lib/motion";
 import type { Payment, Subscription } from "@/types/api";
@@ -73,7 +78,7 @@ export default function Payments() {
     ])
       .then(([pays, subs]) => {
         setPayments(pays?.payments ?? []);
-        setSubscription(subs?.find((s) => s.status === "active") ?? null);
+        setSubscription(findActiveSubscription(subs));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -94,13 +99,20 @@ export default function Payments() {
   }
 
   const isCanceling = !!subscription?.canceled_at;
+  const inGrace = isInGrace(subscription);
+  const accessEnd = subscription ? accessEndsAt(subscription) : null;
   const currency = payments[0]?.currency || "NGN";
   const totalPaid = payments
     .filter((p) => p.status === "completed")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const statusIcon = subscription ? (isCanceling ? CalendarClock : CreditCard) : CreditCard;
-  const statusTone = subscription ? (isCanceling ? "amber" : "success") : "primary";
+  const statusIcon =
+    subscription && (isCanceling || inGrace) ? CalendarClock : CreditCard;
+  const statusTone = subscription
+    ? isCanceling || inGrace
+      ? "amber"
+      : "success"
+    : "primary";
   const StatusIcon = statusIcon;
 
   return (
@@ -142,22 +154,36 @@ export default function Payments() {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">Monthly Access</p>
                   {subscription && (
-                    <Badge variant={isCanceling ? "premium" : "success"}>
-                      {isCanceling ? "Ending soon" : "Active"}
+                    <Badge variant={isCanceling || inGrace ? "premium" : "success"}>
+                      {inGrace ? "Payment due" : isCanceling ? "Ending soon" : "Active"}
                     </Badge>
                   )}
                 </div>
                 <p className="mt-1 font-body text-sm text-muted-foreground">
                   {subscription
-                    ? isCanceling
-                      ? `Access ends ${formatDate(subscription.current_period_end)} — won't renew`
-                      : `Renews on ${formatDate(subscription.current_period_end)}`
+                    ? inGrace
+                      ? `Grace period — renew by ${formatDate(
+                          accessEnd!.toISOString()
+                        )} to keep access`
+                      : isCanceling
+                        ? `Access ends ${formatDate(subscription.current_period_end)} — won't renew`
+                        : `Renews on ${formatDate(subscription.current_period_end)}`
                     : "Subscribe to unlock all modules."}
                 </p>
               </div>
             </div>
-            {subscription ? (
-              !isCanceling && (
+            {inGrace ? (
+              <Button asChild>
+                <Link to="/subscribe">Pay Now</Link>
+              </Button>
+            ) : subscription ? (
+              isCanceling ? (
+                <Button variant="outline" asChild>
+                  <Link to="/subscribe">
+                    <RefreshCw className="size-4" /> Renew Now
+                  </Link>
+                </Button>
+              ) : (
                 <Button variant="outline" onClick={() => setConfirmCancel(true)}>
                   Cancel Subscription
                 </Button>

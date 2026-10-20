@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { api, ApiError } from "@/lib/api";
+import { findActiveSubscription } from "@/lib/subscription";
 import type { Lesson, Module, Progress, Subscription } from "@/types/api";
 
 function formatDuration(seconds: number) {
@@ -36,7 +37,7 @@ export default function ModuleDetail() {
     ])
       .then(([mod, lessonList, subs, prog]) => {
         setModule(mod);
-        const active = subs?.some((s) => s.status === "active") ?? false;
+        const active = findActiveSubscription(subs) !== null;
         setHasAccess(!mod.is_premium || active);
         setLessons(lessonList ?? []);
         setProgress(prog ?? []);
