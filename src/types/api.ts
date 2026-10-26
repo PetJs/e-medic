@@ -70,6 +70,10 @@ export interface Subscription {
   status: "pending" | "active" | "canceled" | "expired";
   current_period_start: string;
   current_period_end: string;
+  /** Last moment access is granted while renewal is retried. */
+  grace_period_end?: string;
+  /** True once current_period_end passed but access is still in grace. */
+  in_grace?: boolean;
   canceled_at?: string | null;
   created_at: string;
 }

@@ -11,8 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ModuleCoverThumb } from "@/components/ModuleCoverThumb";
 import { api } from "@/lib/api";
+import { findActiveSubscription } from "@/lib/subscription";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
-import type { CourseDetail as CourseDetailData, Progress as LessonProgress } from "@/types/api";
+import type {
+  CourseDetail as CourseDetailData,
+  Progress as LessonProgress,
+  Subscription,
+} from "@/types/api";
 
 function formatDuration(totalSeconds?: number) {
   if (!totalSeconds) return null;
@@ -25,6 +30,7 @@ export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const [course, setCourse] = useState<CourseDetailData | null>(null);
   const [progress, setProgress] = useState<LessonProgress[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +42,9 @@ export default function CourseDetail() {
     api<LessonProgress[]>("/progress")
       .then((p) => setProgress(p ?? []))
       .catch(() => {});
+    api<Subscription[]>("/subscriptions")
+      .then((subs) => setSubscriptions(subs ?? []))
+      .catch(() => {});
   }, [id]);
 
   const completedByModule = progress.reduce<Record<string, number>>((acc, p) => {
@@ -44,6 +53,8 @@ export default function CourseDetail() {
     }
     return acc;
   }, {});
+
+  const hasAccess = findActiveSubscription(subscriptions) !== null;
 
   return (
     <div className="space-y-6">
@@ -87,6 +98,7 @@ export default function CourseDetail() {
             >
               {course.modules.map((m) => {
                 const completed = completedByModule[m.id] ?? 0;
+                const locked = m.is_premium && !hasAccess;
                 return (
                   <motion.div key={m.id} variants={fadeInUp()} whileHover={{ y: -3 }}>
                     <Card className="h-full gap-3 py-4">
@@ -95,8 +107,12 @@ export default function CourseDetail() {
                           <ModuleCoverThumb module={m} />
                           <div className="absolute top-2 right-2">
                             {m.is_premium ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <Lock className="size-3" /> Locked
+                              <Badge
+                                variant={locked ? "secondary" : "success"}
+                                className="gap-1"
+                              >
+                                {locked && <Lock className="size-3" />}
+                                {locked ? "Locked" : "Unlocked"}
                               </Badge>
                             ) : (
                               <Badge variant="success">Free Preview</Badge>
@@ -125,9 +141,20 @@ export default function CourseDetail() {
                             </p>
                           </div>
                         )}
-                        <Button variant="outline" size="sm" className="w-full" asChild>
-                          <Link to={`/modules/${m.id}`}>View Details</Link>
-                        </Button>
+                        {locked ? (
+                          <div className="grid gap-2">
+                            <Button size="sm" className="w-full" asChild>
+                              <Link to="/subscribe">Subscribe to Unlock</Link>
+                            </Button>
+                            <Button variant="outline" size="sm" className="w-full" asChild>
+                              <Link to={`/modules/${m.id}`}>View Details</Link>
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" className="w-full" asChild>
+                            <Link to={`/modules/${m.id}`}>View Details</Link>
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
