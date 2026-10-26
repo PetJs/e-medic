@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /signup
+
+# Authenticated areas — nothing useful for crawlers behind these.
+Disallow: /dashboard
+Disallow: /modules
+Disallow: /courses
+Disallow: /lessons
+Disallow: /payments
+Disallow: /payment
+Disallow: /profile
+Disallow: /subscribe
+Disallow: /admin
+
+Sitemap: https://e-medic.vercel.app/sitemap.xml
